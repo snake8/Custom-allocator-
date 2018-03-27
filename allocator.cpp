@@ -5,7 +5,7 @@
    $Creator:Daniel Solovich $
    $Notice: (C) Copyright 2016 by Solovich, Inc. All Rights Reserved. $
    ======================================================================== */
-#include "malloc.h"
+#include "allocator.h"
 
 
 void *Base = NULL;
