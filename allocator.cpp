@@ -56,8 +56,8 @@ SplitBlock(block *Block, u32 Size)
     Block->Next = New; 
 }
 
-void
-*Allocate(u32 Size)
+void * 
+Allocate(u32 Size)
 {
     block *Block, *Last;
     u32 S;
