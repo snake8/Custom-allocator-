@@ -1,17 +1,10 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator:Daniel Solovich $
-   $Notice: (C) Copyright 2016 by Solovich, Inc. All Rights Reserved. $
-   ======================================================================== */
 #include "allocator.h"
 
 
 void *Base = NULL;
 
 internal block * 
-FindBlock(block **Last, u32 Size)
+FindBlock(block **Last, memory_index Size)
 {
     block *Block = (block*)Base;
     while(Block &&
@@ -25,39 +18,43 @@ FindBlock(block **Last, u32 Size)
 
 
 internal block *
-ExtendHeap(block *Last, u32 Size)
+ExtendHeap(block *Last, memory_index Size)
 {
+    s64 Sb;
     block *Block;
-    Block = (block*)sbrk(0);
-    if(sbrk((int)BLOCK_SIZE + Size) == (void*)-1)
+    Block = (block *)sbrk(0);
+    Sb = (s64)sbrk(BLOCK_SIZE + Size);
+    if(Sb < 0)
     {
         return(NULL); 
     }
     Block->Size = Size;
     Block->Next = NULL;
+    Block->Ptr = Block->Data;
     if(Last)
     {
         Last->Next = Block; 
     }
-    Block->Free = false;
-    return(Block); 
+    Block->Free = 0;
+    return(Block);
 }
 
 
 internal void
-SplitBlock(block *Block, u32 Size)
+SplitBlock(block *Block, memory_index Size)
 {
     block *New;
     New = (block*)(Block->Data + Size);
     New->Size = Block->Size - Size - BLOCK_SIZE;
     New->Next = Block->Next;
-    New->Free = true;
+    New->Free = 1;
+    New->Ptr = New->Data; 
     Block->Size = Size;
-    Block->Next = New; 
+    Block->Next = New;
 }
 
-void * 
-Allocate(u32 Size)
+void *
+Allocate(memory_index Size)
 {
     block *Block, *Last;
     u32 S;
@@ -72,7 +69,7 @@ Allocate(u32 Size)
             {
                 SplitBlock(Block, S);
             }
-            Block->Free = false; 
+            Block->Free = 0; 
         }
         else
         {
@@ -104,10 +101,6 @@ Fusion(block *Block)
     {
         Block->Size += BLOCK_SIZE + Block->Next->Size;
         Block->Next = Block->Next->Next;
-        if(Block->Next)
-        {
-            Block->Next->Prev = Block;
-        }
     }
     return(Block); 
 }
@@ -121,7 +114,7 @@ GetBlock(void *Ptr)
     return(Ptr = Tmp -= BLOCK_SIZE);
 }
 
-internal b8
+internal b32
 ValidAddres(void *Ptr)
 {
     if(Base)
@@ -132,7 +125,7 @@ ValidAddres(void *Ptr)
             return(Ptr == ((block*)GetBlock(Ptr))->Ptr);
         }
     }
-    return(false); 
+    return(0); 
 }
 
 
@@ -143,26 +136,14 @@ Deallocate(void *Ptr)
     if(ValidAddres(Ptr))
     {
         Block = (block*)GetBlock(Ptr);
-        Block->Free = true;
-        if(Block->Prev &&
-           Block->Prev->Free)
-        {
-            Block = Fusion(Block->Prev);
-        }
+        Block->Free = 1;
         if(Block->Next)
         {
             Fusion(Block);
         }
         else
         {
-            if(Block->Prev)
-            {
-                Block->Prev->Next = NULL;                
-            }
-            else
-            {
-                Base = NULL; 
-            }
+            Base = NULL; 
             brk(Block);
         }
     }
@@ -183,7 +164,7 @@ CopyBlock(block *Source, block *Dist)
 }
 
 void *
-Reallocate(void *Ptr, u32 Size)
+Reallocate(void *Ptr, memory_index Size)
 {
     u32 S;
     block *Block, *New;
@@ -232,4 +213,3 @@ Reallocate(void *Ptr, u32 Size)
     }
     return(NULL); 
 }
-
